@@ -49,9 +49,16 @@ export function renderLogin() {
             </div>
 
             <label>Password</label>
-            <div class="login-input-wrap">
+            <div class="login-input-wrap" style="position:relative">
               <i class="fa-solid fa-lock login-input-icon"></i>
-              <input id="password" type="password" placeholder="Masukkan password">
+              <input id="password" type="password" placeholder="Masukkan password"
+                style="padding-right:44px"/>
+              <button type="button" id="toggle-password"
+                style="position:absolute;right:14px;top:50%;transform:translateY(-50%);
+                  background:none;border:none;cursor:pointer;color:#94a3b8;font-size:15px;
+                  padding:0;line-height:1">
+                <i class="fa-solid fa-eye" id="toggle-password-icon"></i>
+              </button>
             </div>
 
             <div id="login-error"></div>
@@ -73,6 +80,18 @@ export function renderLogin() {
   const form = document.getElementById("loginForm");
   const errEl = document.getElementById("login-error");
   const btnEl = document.getElementById("login-btn");
+
+  document.getElementById("toggle-password")?.addEventListener("click", () => {
+    const input = document.getElementById("password");
+    const icon = document.getElementById("toggle-password-icon");
+    if (input.type === "password") {
+      input.type = "text";
+      icon.className = "fa-solid fa-eye-slash";
+    } else {
+      input.type = "password";
+      icon.className = "fa-solid fa-eye";
+    }
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
