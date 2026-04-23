@@ -5,11 +5,15 @@ let ortuList = [];
 let editId = null;
 let hapusId = null;
 
+const PAGE_SIZE = 10;
+let currentPage = 1;
+
 async function loadOrtu() {
   try {
     const res = await api.get("/ortu");
     ortuList = res.data;
-    renderTable(ortuList);
+    currentPage = 1;
+    renderTable(getFiltered());
     updateStats();
   } catch (err) {
     alert("Gagal load data orang tua: " + err.message);
@@ -103,6 +107,12 @@ export function renderAdminOrtu() {
           <div class="ag-empty" id="ortu-empty" style="display:none">
             <span>👨‍👩‍👧</span>
             <p>Tidak ada data orang tua ditemukan</p>
+          </div>
+
+          <!-- PAGINATION -->
+          <div class="ag-pagination" id="ortu-pagination" style="display:none">
+            <div class="ag-pagination-info" id="ortu-pagination-info"></div>
+            <div class="ag-pagination-controls" id="ortu-pagination-controls"></div>
           </div>
         </div>
 
@@ -210,16 +220,26 @@ export function renderAdminOrtu() {
 function renderTable(data) {
   const tbody = document.getElementById("ortu-table-body");
   const empty = document.getElementById("ortu-empty");
+  const pagination = document.getElementById("ortu-pagination");
   if (!tbody) return;
 
   if (data.length === 0) {
     tbody.innerHTML = "";
     empty.style.display = "flex";
+    pagination.style.display = "none";
     return;
   }
   empty.style.display = "none";
 
-  tbody.innerHTML = data
+  const totalPages = Math.ceil(data.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const endIdx = Math.min(startIdx + PAGE_SIZE, data.length);
+  const pageData = data.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageData
     .map((o, i) => {
       const siswa = o.siswa || [];
       const jumlahAnak = siswa.length;
@@ -235,7 +255,7 @@ function renderTable(data) {
 
       return `
       <tr class="ag-tr">
-        <td class="ag-td ag-td-no">${i + 1}</td>
+        <td class="ag-td ag-td-no">${startIdx + i + 1}</td>
         <td class="ag-td">
           <div class="ag-guru-name-wrap">
             <div class="ag-avatar ortu-avatar">${getInitials(o.nama)}</div>
@@ -273,6 +293,62 @@ function renderTable(data) {
     `;
     })
     .join("");
+
+  renderPagination(data.length, totalPages);
+}
+
+/* ── Render Pagination ── */
+function renderPagination(totalData, totalPages) {
+  const pagination = document.getElementById("ortu-pagination");
+  const info = document.getElementById("ortu-pagination-info");
+  const controls = document.getElementById("ortu-pagination-controls");
+
+  if (totalPages <= 1) {
+    pagination.style.display = "none";
+    return;
+  }
+
+  pagination.style.display = "flex";
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(currentPage * PAGE_SIZE, totalData);
+  info.textContent = `Menampilkan ${startIdx}–${endIdx} dari ${totalData} orang tua`;
+
+  const pages = buildPageNumbers(currentPage, totalPages);
+
+  controls.innerHTML = `
+    <button class="ag-page-btn ${currentPage === 1 ? "ag-page-btn--disabled" : ""}"
+      data-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""}>
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    ${pages
+      .map((p) =>
+        p === "..."
+          ? `<span class="ag-page-ellipsis">…</span>`
+          : `<button class="ag-page-btn ${p === currentPage ? "ag-page-btn--active" : ""}"
+               data-page="${p}">${p}</button>`,
+      )
+      .join("")}
+    <button class="ag-page-btn ${currentPage === totalPages ? "ag-page-btn--disabled" : ""}"
+      data-page="${currentPage + 1}" ${currentPage === totalPages ? "disabled" : ""}>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  `;
+}
+
+function buildPageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [];
+  if (current <= 4) {
+    pages.push(1, 2, 3, 4, 5, "...", total);
+  } else if (current >= total - 3) {
+    pages.push(1, "...", total - 4, total - 3, total - 2, total - 1, total);
+  } else {
+    pages.push(1, "...", current - 1, current, current + 1, "...", total);
+  }
+  return pages;
 }
 
 /* ── Stats ── */
@@ -517,7 +593,10 @@ function bindEvents() {
     if (e.target.id === "ortu-hapus-overlay") closeHapus();
   });
 
-  $("ortu-search")?.addEventListener("input", () => renderTable(getFiltered()));
+  $("ortu-search")?.addEventListener("input", () => {
+    currentPage = 1;
+    renderTable(getFiltered());
+  });
 
   $("ortu-table-body")?.addEventListener("click", (e) => {
     const editBtn = e.target.closest(".ortu-edit-btn");
@@ -527,5 +606,20 @@ function bindEvents() {
     if (hapusBtn)
       openHapus(parseInt(hapusBtn.dataset.id), hapusBtn.dataset.nama);
     if (anakBtn) openDetail(parseInt(anakBtn.dataset.id), anakBtn.dataset.nama);
+  });
+
+  // Event delegasi untuk tombol pagination
+  $("ortu-pagination-controls")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ag-page-btn");
+    if (!btn || btn.disabled) return;
+    const page = parseInt(btn.dataset.page);
+    if (!isNaN(page)) {
+      currentPage = page;
+      renderTable(getFiltered());
+      document.querySelector(".ag-table-card")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
   });
 }

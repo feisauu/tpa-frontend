@@ -127,7 +127,7 @@ export function renderGuruLaporan() {
         <!-- Page header -->
         <div class="ag-header">
           <div>
-            <h2 class="ag-title">📄 Laporan Perkembangan</h2>
+            <h2 class="ag-title">Laporan Perkembangan</h2>
             <p class="ag-subtitle">Laporan kehadiran dan nilai siswa per kelas</p>
           </div>
         </div>

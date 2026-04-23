@@ -7,10 +7,14 @@ let ortuList = [];
 let editId = null;
 let hapusId = null;
 
+const PAGE_SIZE = 10;
+let currentPage = 1;
+
 async function loadSiswa() {
   try {
     const res = await api.get("/siswa");
     siswList = res.data;
+    currentPage = 1;
     renderTable(getFiltered());
     updateStats();
     updateFilterKelas();
@@ -136,6 +140,12 @@ export function renderAdminSiswa() {
             <i class="fa-solid fa-magnifying-glass"
               style="font-size:32px;color:#cbd5e1"></i>
             <p>Tidak ada siswa ditemukan</p>
+          </div>
+
+          <!-- PAGINATION -->
+          <div class="ag-pagination" id="as-pagination" style="display:none">
+            <div class="ag-pagination-info" id="as-pagination-info"></div>
+            <div class="ag-pagination-controls" id="as-pagination-controls"></div>
           </div>
         </div>
 
@@ -276,23 +286,36 @@ export function renderAdminSiswa() {
   Promise.all([loadKelas(), loadOrtu()]).then(() => loadSiswa());
 }
 
+/* ============================================================
+   RENDER TABLE + PAGINATION
+   ============================================================ */
 function renderTable(data) {
   const tbody = document.getElementById("siswa-table-body");
   const empty = document.getElementById("as-empty");
+  const pagination = document.getElementById("as-pagination");
   if (!tbody) return;
 
   if (data.length === 0) {
     tbody.innerHTML = "";
     empty.style.display = "flex";
+    pagination.style.display = "none";
     return;
   }
   empty.style.display = "none";
 
-  tbody.innerHTML = data
+  const totalPages = Math.ceil(data.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const endIdx = Math.min(startIdx + PAGE_SIZE, data.length);
+  const pageData = data.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageData
     .map(
       (s, i) => `
     <tr class="ag-tr" style="${s.isAlumni ? "background:#fafafa" : ""}">
-      <td class="ag-td ag-td-no">${i + 1}</td>
+      <td class="ag-td ag-td-no">${startIdx + i + 1}</td>
       <td class="ag-td">
         <div class="ag-guru-name-wrap">
           <div class="ag-avatar"
@@ -366,6 +389,64 @@ function renderTable(data) {
   `,
     )
     .join("");
+
+  renderPagination(data.length, totalPages);
+}
+
+/* ============================================================
+   RENDER PAGINATION
+   ============================================================ */
+function renderPagination(totalData, totalPages) {
+  const pagination = document.getElementById("as-pagination");
+  const info = document.getElementById("as-pagination-info");
+  const controls = document.getElementById("as-pagination-controls");
+
+  if (totalPages <= 1) {
+    pagination.style.display = "none";
+    return;
+  }
+
+  pagination.style.display = "flex";
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(currentPage * PAGE_SIZE, totalData);
+  info.textContent = `Menampilkan ${startIdx}–${endIdx} dari ${totalData} siswa`;
+
+  const pages = buildPageNumbers(currentPage, totalPages);
+
+  controls.innerHTML = `
+    <button class="ag-page-btn ${currentPage === 1 ? "ag-page-btn--disabled" : ""}"
+      data-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""}>
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    ${pages
+      .map((p) =>
+        p === "..."
+          ? `<span class="ag-page-ellipsis">…</span>`
+          : `<button class="ag-page-btn ${p === currentPage ? "ag-page-btn--active" : ""}"
+               data-page="${p}">${p}</button>`,
+      )
+      .join("")}
+    <button class="ag-page-btn ${currentPage === totalPages ? "ag-page-btn--disabled" : ""}"
+      data-page="${currentPage + 1}" ${currentPage === totalPages ? "disabled" : ""}>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  `;
+}
+
+function buildPageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [];
+  if (current <= 4) {
+    pages.push(1, 2, 3, 4, 5, "...", total);
+  } else if (current >= total - 3) {
+    pages.push(1, "...", total - 4, total - 3, total - 2, total - 1, total);
+  } else {
+    pages.push(1, "...", current - 1, current, current + 1, "...", total);
+  }
+  return pages;
 }
 
 function updateStats() {
@@ -419,14 +500,12 @@ function openModal(mode = "tambah", id = null) {
   clearErrors();
   document.getElementById("as-overlay").style.display = "flex";
 
-  // Isi dropdown kelas
   document.getElementById("as-input-kelas").innerHTML =
     `<option value="">-- Pilih Kelas --</option>` +
     kelasList
       .map((k) => `<option value="${k.id}">${k.namaKelas}</option>`)
       .join("");
 
-  // Isi dropdown ortu
   const ortuSel = document.getElementById("as-input-ortu");
   ortuSel.innerHTML =
     ortuList.length === 0
@@ -536,10 +615,6 @@ async function simpan() {
     closeModal();
     await Promise.all([loadSiswa(), loadOrtu()]);
 
-    // Di fungsi simpan(), ganti bagian setelah closeModal()
-    closeModal();
-    await Promise.all([loadSiswa(), loadOrtu()]);
-
     if (isAlumni) {
       const filterAktif = document.getElementById("as-filter-aktif");
       if (filterAktif) {
@@ -631,13 +706,19 @@ function bindEvents() {
     if (e.target.id === "as-overlay-hapus") closeHapus();
   });
 
-  $("as-search")?.addEventListener("input", () => renderTable(getFiltered()));
-  $("as-filter-kelas")?.addEventListener("change", () =>
-    renderTable(getFiltered()),
-  );
-  $("as-filter-aktif")?.addEventListener("change", () =>
-    renderTable(getFiltered()),
-  );
+  // Reset ke halaman 1 saat filter/search berubah
+  $("as-search")?.addEventListener("input", () => {
+    currentPage = 1;
+    renderTable(getFiltered());
+  });
+  $("as-filter-kelas")?.addEventListener("change", () => {
+    currentPage = 1;
+    renderTable(getFiltered());
+  });
+  $("as-filter-aktif")?.addEventListener("change", () => {
+    currentPage = 1;
+    renderTable(getFiltered());
+  });
 
   $("siswa-table-body")?.addEventListener("click", (e) => {
     const editBtn = e.target.closest(".ag-btn-edit");
@@ -645,5 +726,21 @@ function bindEvents() {
     if (editBtn) openModal("edit", parseInt(editBtn.dataset.id));
     if (hapusBtn)
       openHapus(parseInt(hapusBtn.dataset.id), hapusBtn.dataset.nama);
+  });
+
+  // Event delegasi untuk tombol pagination
+  $("as-pagination-controls")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ag-page-btn");
+    if (!btn || btn.disabled) return;
+    const page = parseInt(btn.dataset.page);
+    if (!isNaN(page)) {
+      currentPage = page;
+      renderTable(getFiltered());
+      // Scroll ke atas tabel
+      document.querySelector(".ag-table-card")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
   });
 }

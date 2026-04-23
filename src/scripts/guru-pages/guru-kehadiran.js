@@ -58,7 +58,7 @@ export function renderGuruKehadiran() {
           <div class="ag-stat-divider"></div>
           <div class="ag-stat-item">
             <span class="ag-stat-icon" style="background:#dbeafe;color:#2563eb">
-              <i class="fa-solid fa-face-thermometer"></i>
+              <i class="fa-solid fa-notes-medical"></i>
             </span>
             <div>
               <div class="ag-stat-val" id="ab-s-sakit" style="color:#2563eb">0</div>

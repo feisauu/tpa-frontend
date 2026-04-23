@@ -76,7 +76,7 @@ export function renderAdminKelas() {
             <h2 class="ag-title">
               Kelola Data Kelas
             </h2>
-            <p class="ag-subtitle">Manajemen kelas Jilid dan Al-Qur'an TPQ</p>
+            <p class="ag-subtitle">Manajemen kelas Jilid dan Al-Qur'an TPA</p>
           </div>
           <button class="ag-tambah-btn" id="btn-tambah-kelas">
             <i class="fa-solid fa-plus"></i> Tambah Kelas

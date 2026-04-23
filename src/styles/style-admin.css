@@ -1760,3 +1760,110 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   PAGINATION — Tambahkan di bagian bawah admin.css
+   ============================================================ */
+
+.ag-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ag-pagination-info {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.ag-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ag-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.ag-page-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  color: #6366f1;
+  background: #f5f3ff;
+}
+
+.ag-page-btn--active {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-color: #6366f1;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.ag-page-btn--active:hover {
+  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+  color: white !important;
+}
+
+.ag-page-btn--disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.ag-page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* Responsive pagination */
+@media (max-width: 480px) {
+  .ag-pagination {
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .ag-pagination-info {
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .ag-page-btn {
+    min-width: 30px;
+    height: 30px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+
+  .ag-page-ellipsis {
+    min-width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+}

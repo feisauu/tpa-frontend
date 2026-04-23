@@ -157,6 +157,10 @@ let currentSiswaId = null;
 let currentViewKelasId = null;
 let currentJenisKelas = "";
 
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let currentFilter = "semua";
+
 export function renderGuruRiwayatNilai() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -233,6 +237,12 @@ export function renderGuruRiwayatNilai() {
             <p>Belum ada data nilai untuk filter ini</p>
           </div>
 
+          <!-- PAGINATION -->
+          <div class="ag-pagination" id="rv-pagination" style="display:none">
+            <div class="ag-pagination-info" id="rv-pagination-info"></div>
+            <div class="ag-pagination-controls" id="rv-pagination-controls"></div>
+          </div>
+
         </div>
 
       </main>
@@ -300,6 +310,8 @@ function bindEvents() {
       return;
     }
     currentViewKelasId = currentKelasId;
+    currentPage = 1;
+    currentFilter = "semua";
     await loadRiwayat();
   });
 
@@ -310,8 +322,27 @@ function bindEvents() {
       .querySelectorAll(".rv-tab")
       .forEach((t) => t.classList.remove("rv-tab-active"));
     btn.classList.add("rv-tab-active");
-    renderTabel(btn.dataset.filter);
+    currentFilter = btn.dataset.filter;
+    currentPage = 1;
+    renderTabel(currentFilter);
   });
+
+  // Event delegasi pagination
+  document
+    .getElementById("rv-pagination-controls")
+    ?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".ag-page-btn");
+      if (!btn || btn.disabled) return;
+      const page = parseInt(btn.dataset.page);
+      if (!isNaN(page)) {
+        currentPage = page;
+        renderTabel(currentFilter);
+        document.getElementById("rv-table-card")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    });
 }
 
 async function loadKelas() {
@@ -402,6 +433,8 @@ async function loadRiwayat() {
       .querySelector('.rv-tab[data-filter="semua"]')
       ?.classList.add("rv-tab-active");
 
+    currentFilter = "semua";
+    currentPage = 1;
     renderTabel("semua");
     rekapCard.classList.remove("gn-hidden");
     tableArea.style.display = "";
@@ -434,6 +467,9 @@ window.gantiViewKelas = function (kelasId) {
   document
     .querySelector('.rv-tab[data-filter="semua"]')
     ?.classList.add("rv-tab-active");
+
+  currentFilter = "semua";
+  currentPage = 1;
   renderTabel("semua");
 
   document
@@ -477,8 +513,6 @@ function renderRekap(siswa, kelas) {
   document.getElementById("rv-rekap-kelas").textContent =
     kelas?.namaKelas ?? "-";
 
-  const NILAI_SCORE = { A: 1.0, B: 0.75, C: 0.5, D: 0.25 };
-  const BOBOT = { bacaan: 0.4, hafalan: 0.35, menulis: 0.25 };
   const NILAI_MAP = { A: 100, B: 75, C: 50, D: 25 };
 
   const latestPerJenis = {};
@@ -547,6 +581,7 @@ function renderTabel(filter = "semua") {
   const thead = document.getElementById("rv-thead");
   const empty = document.getElementById("rv-empty");
   const area = document.getElementById("rv-table-area");
+  const pagination = document.getElementById("rv-pagination");
 
   let filtered = riwayatData;
   if (filter === "reguler")
@@ -576,15 +611,26 @@ function renderTabel(filter = "semua") {
   if (sesiList.length === 0) {
     area.style.display = "none";
     empty.classList.remove("gn-hidden");
+    pagination.style.display = "none";
     return;
   }
 
   area.style.display = "";
   empty.classList.add("gn-hidden");
 
+  // Pagination
+  const totalPages = Math.ceil(sesiList.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const endIdx = Math.min(startIdx + PAGE_SIZE, sesiList.length);
+  const pageSesi = sesiList.slice(startIdx, endIdx);
+
   if (currentJenisKelas === "alquran") {
     thead.innerHTML = `
       <tr>
+        <th>No</th>
         <th>Tanggal</th>
         <th>Tipe</th>
         <th>Bacaan (Surat · Ayat)</th>
@@ -595,10 +641,13 @@ function renderTabel(filter = "semua") {
         <th>Status</th>
         <th>Catatan</th>
       </tr>`;
-    tbody.innerHTML = sesiList.map(buildRowAlquran).join("");
+    tbody.innerHTML = pageSesi
+      .map((s, i) => buildRowAlquran(s, startIdx + i + 1))
+      .join("");
   } else {
     thead.innerHTML = `
       <tr>
+        <th>No</th>
         <th>Tanggal</th>
         <th>Tipe</th>
         <th>Halaman</th>
@@ -609,12 +658,70 @@ function renderTabel(filter = "semua") {
         <th>Status / Keputusan</th>
         <th>Catatan</th>
       </tr>`;
-    tbody.innerHTML = sesiList.map(buildRowJilid).join("");
+    tbody.innerHTML = pageSesi
+      .map((s, i) => buildRowJilid(s, startIdx + i + 1))
+      .join("");
   }
+
+  renderPagination(sesiList.length, totalPages);
+}
+
+/* ── Pagination ───────────────────────────────────────────────── */
+function renderPagination(totalData, totalPages) {
+  const pagination = document.getElementById("rv-pagination");
+  const info = document.getElementById("rv-pagination-info");
+  const controls = document.getElementById("rv-pagination-controls");
+
+  if (totalPages <= 1) {
+    pagination.style.display = "none";
+    return;
+  }
+
+  pagination.style.display = "flex";
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(currentPage * PAGE_SIZE, totalData);
+  info.textContent = `Menampilkan ${startIdx}–${endIdx} dari ${totalData} sesi`;
+
+  const pages = buildPageNumbers(currentPage, totalPages);
+
+  controls.innerHTML = `
+    <button class="ag-page-btn ${currentPage === 1 ? "ag-page-btn--disabled" : ""}"
+      data-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""}>
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    ${pages
+      .map((p) =>
+        p === "..."
+          ? `<span class="ag-page-ellipsis">…</span>`
+          : `<button class="ag-page-btn ${p === currentPage ? "ag-page-btn--active" : ""}"
+               data-page="${p}">${p}</button>`,
+      )
+      .join("")}
+    <button class="ag-page-btn ${currentPage === totalPages ? "ag-page-btn--disabled" : ""}"
+      data-page="${currentPage + 1}" ${currentPage === totalPages ? "disabled" : ""}>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  `;
+}
+
+function buildPageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [];
+  if (current <= 4) {
+    pages.push(1, 2, 3, 4, 5, "...", total);
+  } else if (current >= total - 3) {
+    pages.push(1, "...", total - 4, total - 3, total - 2, total - 1, total);
+  } else {
+    pages.push(1, "...", current - 1, current, current + 1, "...", total);
+  }
+  return pages;
 }
 
 /* ── Row jilid ───────────────────────────────────────────────── */
-function buildRowJilid(sesi) {
+function buildRowJilid(sesi, no) {
   const meta = sesi.meta;
   const tipe = sesi.tipeInput ?? "reguler";
   const bacaan = sesi.data.bacaan;
@@ -630,6 +737,7 @@ function buildRowJilid(sesi) {
 
   return `
     <tr>
+      <td class="ag-td-no" style="color:#94a3b8;font-weight:600;padding:14px 20px">${no}</td>
       <td class="rv-td-nowrap">${formatTanggal(sesi.tanggal)}</td>
       <td>${badgeTipe(tipe)}</td>
       <td>${halaman}</td>
@@ -643,7 +751,7 @@ function buildRowJilid(sesi) {
 }
 
 /* ── Row al-qur'an ───────────────────────────────────────────── */
-function buildRowAlquran(sesi) {
+function buildRowAlquran(sesi, no) {
   const meta = sesi.meta;
   const bacaan = sesi.data.bacaan;
   const hafalan = sesi.data.hafalan;
@@ -658,6 +766,7 @@ function buildRowAlquran(sesi) {
 
   return `
     <tr>
+      <td class="ag-td-no" style="color:#94a3b8;font-weight:600;padding:14px 20px">${no}</td>
       <td class="rv-td-nowrap">${formatTanggal(sesi.tanggal)}</td>
       <td>${badgeTipe(sesi.tipeInput ?? "reguler")}</td>
       <td class="rv-td-surat">${infoBacaan}</td>
