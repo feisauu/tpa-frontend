@@ -211,9 +211,8 @@ export function renderGuruLaporan() {
               },
             ]
               .map(
-                (
-                  l,
-                ) => `<span class="lap-legend-chip" style="background:${l.bg};color:${l.warna}">
+                (l) =>
+                  `<span class="lap-legend-chip" style="background:${l.bg};color:${l.warna}">
                   ${l.icon} ${l.label}
                 </span>`,
               )
@@ -232,7 +231,6 @@ export function renderGuruLaporan() {
                     <span id="lap-hari-label" class="lap-hari-label"></span>
                   </th>
                   <th colspan="3" class="lap-th-aspek">Nilai per Aspek</th>
-                  <th rowspan="2" class="lap-th-mid">Rata-rata</th>
                   <th rowspan="2" class="lap-th-mid">Keterangan</th>
                 </tr>
                 <tr>
@@ -336,7 +334,7 @@ async function loadLaporan() {
 
     if (!d.siswa.length) {
       tbody.innerHTML = `
-        <tr><td colspan="8" class="lap-td-empty">Tidak ada data siswa</td></tr>`;
+        <tr><td colspan="7" class="lap-td-empty">Tidak ada data siswa</td></tr>`;
     } else {
       tbody.innerHTML = d.siswa
         .map((s, i) => {
@@ -350,10 +348,6 @@ async function loadLaporan() {
           const hafalan = s.nilaiPerJenis?.hafalan ?? 0;
           const menulis = s.nilaiPerJenis?.menulis ?? 0;
           const avg = s.rataRataNilai ?? 0;
-
-          const hurufAvg = angkaKeHuruf(avg);
-          const warnaAvg = hurufAvg ? HURUF_COLOR[hurufAvg] : "#94a3b8";
-          const bgAvg = hurufAvg ? HURUF_BG[hurufAvg] : "#f1f5f9";
 
           const ket = keterangan(pct, avg);
 
@@ -377,14 +371,6 @@ async function loadLaporan() {
             <td class="lap-td-aspek">${nilaiChip(bacaan)}</td>
             <td class="lap-td-aspek">${nilaiChip(hafalan)}</td>
             <td class="lap-td-aspek">${nilaiChip(menulis)}</td>
-            <td class="lap-td-avg">
-              ${
-                hurufAvg
-                  ? `<span class="lap-avg-chip"
-                    style="background:${bgAvg};color:${warnaAvg}">${hurufAvg}</span>`
-                  : `<span class="lap-nilai-empty">—</span>`
-              }
-            </td>
             <td class="lap-td-ket">
               <span class="lap-ket-chip"
                 style="background:${ket.bg};color:${ket.warna}">
